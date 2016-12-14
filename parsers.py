@@ -1,4 +1,5 @@
 from BeautifulSoup import BeautifulSoup as BS
+from bs4 import SoupStrainer, BeautifulSoup
 #import pandas as pd
 from StringIO import StringIO
 from collections import namedtuple
@@ -33,20 +34,24 @@ def parser_product(html):
 
     #li = soup.findAll("div",{"class":"row"})[1].find("div",{'class':"col-md-8"})
 
+    try:
+      delivery=li.findAll("td")[5].text
+    except:
+      delivery=""
 
-    entry = { 'product_id':li.form.get('action'),
+    entry = { "_id":li.form.get('action'),
+    'product_id':li.form.get('action'),
     'product':li.h2.text,
     'price_usd':li.find("div",{"class":"listing-price"}).strong.text.strip(),
     'price_btc':li.find("div",{"class":"listing-price"}).span.text.strip(),
     'vendor':li.tr.findAll("td")[1].a.text,
     'vendor_url':li.tr.findAll("td")[1].a["href"], 
     'product_type':ptype,        
-    'delivery':li.findAll("td")[5].text,        
+    'delivery':delivery,        
     #'description':soup.p.text
     }
 
-    return Entry(**entry)
-
+    return entry
 def parser_feedback(html):
     soup=BeautifulSoup(html,"html5lib")
     feedbacks=[]
@@ -54,27 +59,35 @@ def parser_feedback(html):
     prod=li.form.get('action')
     Feedback = namedtuple("Feedback", ["prod_id","date",'user',"delivery_time", "note", "text"])
     h=HTMLParser()
-    try:
-        for e in soup.find_all("table",{"class":"table"})[2].tbody.findAll("tr"):
-            feed,text,deliv,user,date=e.find_all('td')
-            feed=feed.span.get("class")[1].split("-")[1] 
+    for i in xrange(1,3):
+      
+      try:
+      
+        for e in soup.find_all("table",{"class":"table"})[i].tbody.findAll("tr"):
+          feed,text,deliv,user,date=e.find_all('td')
+          feed=feed.span.get("class")[1].split("-")[1] 
+          note=0
+          if feed == 'danger':
+            note=-1
+          if feed == "default":
             note=0
-            if feed == 'danger':
-                note=-1
-            if feed == "default":
-                note=0
-            if feed == "success":
-                note=1
-        #print "||".join([date.text,user.text, h.unescape(text.text),  deliv.text])
-            f=Feedback(prod,date.text,user.text,deliv.text, note, text.text)
-            feedbacks.append(f)
-    except AttributeError, e:
-        print e
-        
-    
+          if feed == "success":
+            note=1
+          f={"prod_id":prod,
+              "date":date.text,
+              "user":user.text,
+              "delivery_time":deliv.text, 
+              "note":note, 
+              "text":text.text}
+          feedbacks.append(f)
+      except AttributeError, e:
+         print e
+
+      except ValueError:
+         pass
+     #print 'vler'
     other_feedback = next_feed(soup)
-    
+
         
     return other_feedback,feedbacks
-        
 
